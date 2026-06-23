@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 from google import genai
 from google.genai import types
 
@@ -15,21 +14,19 @@ try:
 except Exception as e:
     st.error("Missing API Key! Please add GEMINI_API_KEY to your Streamlit Secrets.")
 
-# 3. AUTOMATED SEARCH FUNCTION WITH TIME-TO-LIVE (TTL) CACHING
-# 2,592,000 seconds = exactly 30 days. Change to 1209600 for 14 days.
+# 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING
 @st.cache_data(ttl=2592000)
 def fetch_conferences_from_web():
-    # Hardcoded search parameters so the user doesn't have to type anything
     automated_query = "upcoming rural oncology health conferences annual meetings 2026 2027"
     
     system_prompt = f"""
     Search the live internet for upcoming professional conferences, webinars, or annual meetings regarding: {automated_query}.
-    Provide a clean markdown table with the following columns:
-    - Conference Name
-    - Date
-    - Location (or Virtual)
-    - Brief Description
-    - Website Link (Provide the actual working URL link)
+    You MUST output the results strictly as a markdown table using the exact layout below:
+
+    | Conference Name | Date | Location | Brief Description | Website Link |
+    | --- | --- | --- | --- | --- |
+
+    Do not include introductory or concluding conversational text. Only output the filled table.
     Only include public, official professional events. Do not include past events.
     """
 
@@ -42,7 +39,6 @@ def fetch_conferences_from_web():
         ),
     )
     
-    # Extract the table text and the source chunk data safely
     table_content = response.text
     source_links = []
     try:
@@ -54,16 +50,14 @@ def fetch_conferences_from_web():
         
     return table_content, source_links
 
-# 4. Execute the Cached Search Automatically on Load
+# 4. Execute the Cached Search Automatically on Page Load
 with st.spinner("Loading conference schedule..."):
     try:
         conference_table, used_sources = fetch_conferences_from_web()
         
-        # Display the neat markdown table on the screen
         st.subheader("📅 Live Schedule")
         st.markdown(conference_table)
         
-        # Create a dropdown box showing the exact websites used
         if used_sources:
             with st.expander("🌐 View Search Sources"):
                 for source in used_sources:
@@ -75,8 +69,9 @@ with st.spinner("Loading conference schedule..."):
 # --- HELP GUIDE (HIDDEN BACKGROUND COMMENT) ---
 # To read these instructions later, just open this file on GitHub.
 #
-# 1. Go to https://aistudio.google.com
+# 1. Go to https://google.com
 # 2. Log in and click "Get API Key"
 # 3. Create a free key
 # 4. Paste it into Streamlit Cloud Secrets as GEMINI_API_KEY
+
 
