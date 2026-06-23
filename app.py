@@ -68,8 +68,10 @@ if search_topic:
                 st.error(f"Search failed. Please check your API Key. Error: {e}")
 
 # --- HELP GUIDE IN THE SIDEBAR ---
+"""
 with st.sidebar:
     st.header("⚙️ Director's Admin Panel")
     st.write("This tool uses a free account key to search Google.")
     st.subheader("How to fix if it stops working:")
     st.markdown("1. Go to [://google.com](https://://google.com)\n2. Log in and click **Get API Key**\n3. Create a free key\n4. Paste it into Streamlit Cloud Secrets as `GEMINI_API_KEY`")
+"""
