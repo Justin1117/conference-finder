@@ -7,7 +7,7 @@ from datetime import datetime
 st.set_page_config(page_title="Rural Oncology Conferences", layout="wide")
 
 st.title("🌾 Upcoming Rural Oncology & Health Conferences")
-st.write("This list automatically checks the live internet for upcoming professional events and refreshes once a month to save data.")
+st.write("This list automatically checks the live internet for upcoming professional events and refreshes once a month.")
 
 # 2. Connect to the Google AI Client Safely using your secrets key
 try:
