@@ -7,7 +7,7 @@ from datetime import datetime
 st.set_page_config(page_title="Rural Oncology Conferences", layout="wide")
 
 st.title("🌾 Upcoming Rural Oncology & Health Conferences")
-st.write("This list automatically checks the live internet for upcoming professional events and refreshes once a month.")
+st.write("This list automatically checks the live internet for upcoming professional events and refreshes once a month to save data.")
 
 # 2. Connect to the Google AI Client Safely using your secrets key
 try:
@@ -34,8 +34,10 @@ def fetch_conferences_from_web():
     | Conference Name | Date | Location | Brief Description | Website Link |
     | --- | --- | --- | --- | --- |
 
-    CRITICAL LINK RULE: 
-    Do NOT invent links or write 'No direct link found'. For every single row in the table, set the 'Website Link' column to exactly this Markdown link: [View Details & Register](https://www.ruralhealthinfo.org/topics/cancer/events)
+    SMART HYBRID LINK RULES: 
+    - If a specific, unique registration or event page URL is explicitly verified in the live search data for a conference, use that exact link.
+    - If no direct, unique event page URL is explicitly found, do NOT write 'No direct link found' or invent a fake web address. Instead, fallback gracefully and link the text to the parent organization calendar or the primary resource hub page: [View Resource Calendar](https://ruralhealthinfo.org)
+    - Ensure every link is properly formatted as a clickable Markdown link (e.g., [View Event](url) or [View Resource Calendar](url)).
 
     Do not include introductory or concluding conversational text. Only output the filled markdown table.
     Only include public, official professional medical events. Do not include general technology or AI events.
@@ -72,5 +74,3 @@ with st.spinner("Loading conference schedule..."):
 # 2. Log in and click "Get API Key"
 # 3. Create a free key or use your existing prepaid key setup
 # 4. Paste it into Streamlit Cloud Secrets as GEMINI_API_KEY
-
-
