@@ -30,16 +30,13 @@ def fetch_conferences_from_web():
     source_links = []
     try:
         with DDGS() as ddgs:
-            # Pulling a few more results to ensure we get good data
             results = list(ddgs.text(automated_query, max_results=8))
             for i, r in enumerate(results, 1):
-                # We give each result a strict index number (1, 2, 3...)
                 search_results_text += f"RESULT #{i}\nTitle: {r['title']}\nDetails: {r['body']}\n\n"
                 source_links.append({"index": i, "title": r['title'], "url": r['href']})
     except Exception as e:
         search_results_text = "Could not pull live web text due to search engine rate limits."
 
-    # Prompt ordering the AI to summarize the events but NOT generate URLs
     system_prompt = f"""
     You are a medical administrative assistant. Your job is to extract upcoming rural healthcare, medical, and oncology conferences from the search results below.
     
@@ -67,7 +64,14 @@ def fetch_conferences_from_web():
         temperature=0.1
     )
     
-    table_content = response.choices.message.content
+    # --- FLEXIBLE FIX: Handle both object formats and list formats safely ---
+    if isinstance(response, list):
+        table_content = response[0].get("message", {}).get("content", "")
+    elif hasattr(response, 'choices'):
+        table_content = response.choices[0].message.content
+    else:
+        table_content = str(response)
+        
     return table_content, source_links
 
 # 4. Execute the Cached Search Automatically on Page Load
@@ -79,13 +83,11 @@ if hf_token:
             st.subheader("📅 Live Schedule")
             st.markdown(conference_table)
             
-            # Display the 100% verified URLs safely underneath the table
             if used_sources:
                 st.write("---")
                 st.subheader("🔗 Verified Official Website Links")
                 st.write("Click the links below to open the official websites for the sources referenced in the table above:")
                 
-                # Split links into a clean 2-column layout so it looks polished
                 col1, col2 = st.columns(2)
                 for index, source in enumerate(used_sources):
                     display_text = f"**Source #{source['index']}**: [{source['title']}]({source['url']})"
@@ -96,3 +98,4 @@ if hf_token:
                         
         except Exception as e:
             st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
+
