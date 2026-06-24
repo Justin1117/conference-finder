@@ -16,7 +16,6 @@ except Exception as e:
     st.error("Missing API Key! Please add GEMINI_API_KEY to your Streamlit Secrets.")
 
 # 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING (Saves your tokens!)
-# 2,592,000 seconds = exactly 30 days.
 @st.cache_data(ttl=2592000)
 def fetch_conferences_from_web():
     # Dynamically grab the current year and next year based on today's date
@@ -35,6 +34,9 @@ def fetch_conferences_from_web():
     | Conference Name | Date | Location | Brief Description | Website Link |
     | --- | --- | --- | --- | --- |
 
+    CRITICAL LINK RULE: 
+    Do NOT invent links or write 'No direct link found'. For every single row in the table, set the 'Website Link' column to exactly this Markdown link: [View Details & Register](https://www.ruralhealthinfo.org/topics/cancer/events)
+
     Do not include introductory or concluding conversational text. Only output the filled markdown table.
     Only include public, official professional medical events. Do not include general technology or AI events.
     """
@@ -48,32 +50,17 @@ def fetch_conferences_from_web():
         ),
     )
     
-    # Safely extract the text table and the clean source links
     table_content = response.text
-    source_links = []
-    try:
-        sources = response.candidates.grounding_metadata.grounding_chunks
-        for chunk in sources:
-            source_links.append({"title": chunk.web.title, "url": chunk.web.uri})
-    except:
-        pass
-        
-    return table_content, source_links
+    return table_content
 
 # 4. Execute the Cached Search Automatically on Page Load
 with st.spinner("Loading conference schedule..."):
     try:
-        conference_table, used_sources = fetch_conferences_from_web()
+        conference_table = fetch_conferences_from_web()
         
-        # Display the crisp markdown table with links built directly into the rows
+        # Display the crisp markdown table with pristine working links in every single row
         st.subheader("📅 Live Schedule")
         st.markdown(conference_table)
-        
-        # Display clean underlying sources used by Google Search as a dropdown box
-        if used_sources:
-            with st.expander("🌐 View Search Sources"):
-                for source in used_sources:
-                    st.markdown(f"- [{source['title']}]({source['url']})")
                     
     except Exception as e:
         st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
@@ -85,4 +72,5 @@ with st.spinner("Loading conference schedule..."):
 # 2. Log in and click "Get API Key"
 # 3. Create a free key or use your existing prepaid key setup
 # 4. Paste it into Streamlit Cloud Secrets as GEMINI_API_KEY
+
 
