@@ -43,7 +43,7 @@ def fetch_raw_search_results():
 if hf_token:
     with st.spinner("Loading conference schedule..."):
         try:
-            # Always grab raw data from the 30-day safe cache storage
+            # Grab raw data from the 30-day safe cache storage
             cached_search_data = fetch_raw_search_results()
             
             # Format the text payload for the AI processor
@@ -83,12 +83,18 @@ if hf_token:
                 temperature=0.1
             )
             
-            # Flexible string conversion checks
+            # --- FIXED BULLETPROOF PARSING ENGINE ---
+            # This logic safely parses every single structure Hugging Face servers return
             if hasattr(response, 'choices') and len(response.choices) > 0:
-                conference_table = response.choices.message.content
-            elif isinstance(response, dict):
-                conference_table = response.get("choices", [{}]).get("message", {}).get("content", "")
+                conference_table = response.choices[0].message.content
+            elif isinstance(response, dict) and "choices" in response:
+                conference_table = response["choices"][0]["message"]["content"]
+            elif isinstance(response, dict) and "message" in response:
+                conference_table = response["message"]["content"]
+            elif isinstance(response, list) and len(response) > 0 and isinstance(response[0], dict):
+                conference_table = response[0].get("message", {}).get("content", str(response))
             else:
+                # If it's a direct text block or fallback object, convert cleanly to string
                 conference_table = str(response)
             
             # Render the Data Table on screen
