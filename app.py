@@ -14,51 +14,50 @@ hf_token = st.secrets.get("HUGGINGFACE_TOKEN")
 if not hf_token:
     st.error("Missing API Token! Please add HUGGINGFACE_TOKEN to your Streamlit Secrets.")
 else:
-    # Use the client interface
     client = InferenceClient(token=hf_token)
 
 # 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING
 @st.cache_data(ttl=2592000)
 def fetch_conferences_from_web():
-    automated_query = "upcoming rural oncology health conferences annual meetings 2026 2027"
+    # Focused query to force health/medical results out of the search engine
+    automated_query = "rural oncology cancer healthcare conferences meetings 2026 2027"
     
-    # Run a free live search using DuckDuckGo
     search_results_text = ""
     source_links = []
     try:
         with DDGS() as ddgs:
-            results = list(ddgs.text(automated_query, max_results=5))
+            results = list(ddgs.text(automated_query, max_results=6))
             for r in results:
-                search_results_text += f"Title: {r['title']}\nSnippet: {r['body']}\nURL: {r['href']}\n\n"
+                search_results_text += f"CONFERENCE WEBSITE DATA:\nTitle: {r['title']}\nDetails: {r['body']}\nURL: {r['href']}\n\n"
                 source_links.append({"title": r['title'], "url": r['href']})
     except Exception as e:
         search_results_text = "Could not pull live web text due to search engine rate limits."
 
-    # Use the proper conversational message structure requested by the server
+    # Strict prompt forcing the model to only use the text above
     system_prompt = f"""
-    You are an expert scheduler. Organize the following live internet search results into a clean markdown table.
+    You are a medical administrative assistant. Your job is to extract upcoming rural healthcare, medical, and oncology conferences from the search results below.
     
-    Search Results:
+    CRITICAL RULE: Ignore any topics regarding general AI, generic technology, or unrelated themes. Only extract events related to healthcare, rural medicine, or cancer/oncology.
+
+    Search Results to parse:
     {search_results_text}
 
-    You MUST output the results strictly as a markdown table using the exact layout below:
+    You MUST output your findings strictly as a markdown table using the exact layout below:
 
     | Conference Name | Date | Location | Brief Description | Website Link |
     | --- | --- | --- | --- | --- |
 
-    Do not include introductory or concluding conversational text. Only output the filled table.
-    Only include public, official professional events. Do not include past events.
+    Do not include introductory text, conversational text, or summary text. Only output the markdown table.
     """
 
-    # Call the chat interface to bypass the provider task mismatch
+    # Using Qwen 2.5 72B - a powerful, free model that handles strict structured data perfectly
     response = client.chat.completions.create(
-        model="meta-llama/Meta-Llama-3-8B-Instruct",
+        model="Qwen/Qwen2.5-72B-Instruct",
         messages=[{"role": "user", "content": system_prompt}],
         max_tokens=1500,
         temperature=0.1
     )
     
-    # Extract text from the structured choice payload
     table_content = response.choices[0].message.content
     return table_content, source_links
 
@@ -78,6 +77,3 @@ if hf_token:
                         
         except Exception as e:
             st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
-
-
-
