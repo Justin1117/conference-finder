@@ -31,13 +31,8 @@ def fetch_conferences_from_web():
     
     You MUST output the results strictly as a markdown table using the exact layout below:
 
-    | Conference Name | Date | Location | Brief Description | Website Link |
-    | --- | --- | --- | --- | --- |
-
-    SMART HYBRID LINK RULES: 
-    - If a specific, unique registration or event page URL is explicitly verified in the live search data for a conference, use that exact link.
-    - If no direct, unique event page URL is explicitly found, do NOT write 'No direct link found' or invent a fake web address. Instead, fallback gracefully and link the text to the parent organization calendar or the primary resource hub page: [View Resource Calendar](https://ruralhealthinfo.org)
-    - Ensure every link is properly formatted as a clickable Markdown link (e.g., [View Event](url) or [View Resource Calendar](url)).
+    | Conference Name | Date | Location | Brief Description |
+    | --- | --- | --- | --- |
 
     Do not include introductory or concluding conversational text. Only output the filled markdown table.
     Only include public, official professional medical events. Do not include general technology or AI events.
@@ -52,17 +47,47 @@ def fetch_conferences_from_web():
         ),
     )
     
+    # Safely extract the text table and the clean source links
     table_content = response.text
-    return table_content
+    source_links = []
+    try:
+        sources = response.candidates.grounding_metadata.grounding_chunks
+        for chunk in sources:
+            if chunk.web.title and chunk.web.uri:
+                source_links.append({"title": chunk.web.title, "url": chunk.web.uri})
+    except:
+        pass
+        
+    return table_content, source_links
 
 # 4. Execute the Cached Search Automatically on Page Load
 with st.spinner("Loading conference schedule..."):
     try:
-        conference_table = fetch_conferences_from_web()
+        conference_table, used_sources = fetch_conferences_from_web()
         
-        # Display the crisp markdown table with pristine working links in every single row
+        # Display the clean markdown table on the screen
         st.subheader("📅 Live Schedule")
         st.markdown(conference_table)
+        
+        # Display clean underlying sources used by Google Search as an expander dropdown box
+        if used_sources:
+            st.write("---")
+            st.subheader("🔗 Verified Official Website Links")
+            st.write("Click the links below to open the official websites for the sources referenced in the schedule above:")
+            
+            # Create an expander dropdown container
+            with st.expander("👉 Click here to view all official website links"):
+                # Clean up duplicate urls if any exist in the response metadata
+                unique_sources = {s['url']: s['title'] for s in used_sources if s['url'] and s['title']}
+                
+                # Split links into a clean 2-column layout so it looks polished
+                col1, col2 = st.columns(2)
+                for index, (url, title) in enumerate(unique_sources.items()):
+                    display_markdown = f"- [{title}]({url})"
+                    if index % 2 == 0:
+                        col1.markdown(display_markdown)
+                    else:
+                        col2.markdown(display_markdown)
                     
     except Exception as e:
         st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
