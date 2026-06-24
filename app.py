@@ -9,14 +9,13 @@ st.title("🌾 Upcoming Rural Oncology & Health Conferences")
 st.write("This list automatically checks the live internet for upcoming professional events and refreshes once a month to save data.")
 
 # 2. Connect to the Free Hugging Face Client Safely
-# Looks for HUGGINGFACE_TOKEN in your Streamlit Cloud Secrets
 hf_token = st.secrets.get("HUGGINGFACE_TOKEN")
 
 if not hf_token:
     st.error("Missing API Token! Please add HUGGINGFACE_TOKEN to your Streamlit Secrets.")
 else:
-    # Use Meta's powerful open-source Llama model for free
-    client = InferenceClient("meta-llama/Meta-Llama-3-8B-Instruct", token=hf_token)
+    # Use the client interface
+    client = InferenceClient(token=hf_token)
 
 # 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING
 @st.cache_data(ttl=2592000)
@@ -35,7 +34,7 @@ def fetch_conferences_from_web():
     except Exception as e:
         search_results_text = "Could not pull live web text due to search engine rate limits."
 
-    # Craft the instructions for the free AI model using the search data
+    # Use the proper conversational message structure requested by the server
     system_prompt = f"""
     You are an expert scheduler. Organize the following live internet search results into a clean markdown table.
     
@@ -51,14 +50,17 @@ def fetch_conferences_from_web():
     Only include public, official professional events. Do not include past events.
     """
 
-    # Call the free Hugging Face API
-    response = client.text_generation(
-        system_prompt,
-        max_new_tokens=1500,
+    # Call the chat interface to bypass the provider task mismatch
+    response = client.chat.completions.create(
+        model="meta-llama/Meta-Llama-3-8B-Instruct",
+        messages=[{"role": "user", "content": system_prompt}],
+        max_tokens=1500,
         temperature=0.1
     )
     
-    return response, source_links
+    # Extract text from the structured choice payload
+    table_content = response.choices[0].message.content
+    return table_content, source_links
 
 # 4. Execute the Cached Search Automatically on Page Load
 if hf_token:
