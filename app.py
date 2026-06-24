@@ -1,6 +1,6 @@
 import streamlit as st
-from huggingface_hub import InferenceClient
-from duckduckgo_search import DDGS
+from google import genai
+from google.genai import types
 from datetime import datetime
 
 # 1. Setup the webpage layout
@@ -9,122 +9,80 @@ st.set_page_config(page_title="Rural Oncology Conferences", layout="wide")
 st.title("🌾 Upcoming Rural Oncology & Health Conferences")
 st.write("This list automatically checks the live internet for upcoming professional events and refreshes once a month to save data.")
 
-# 2. Connect to the Free Hugging Face Client Safely
-hf_token = st.secrets.get("HUGGINGFACE_TOKEN")
+# 2. Connect to the Google AI Client Safely using your secrets key
+try:
+    client = genai.Client()
+except Exception as e:
+    st.error("Missing API Key! Please add GEMINI_API_KEY to your Streamlit Secrets.")
 
-if not hf_token:
-    st.error("Missing API Token! Please add HUGGINGFACE_TOKEN to your Streamlit Secrets.")
-else:
-    client = InferenceClient(token=hf_token)
-
-# 3. CACHED INTERNET DATA RETRIEVAL (Only searches the web once a month)
+# 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING (Saves your tokens!)
+# 2,592,000 seconds = exactly 30 days.
 @st.cache_data(ttl=2592000)
-def fetch_raw_search_results():
+def fetch_conferences_from_web():
+    # Dynamically grab the current year and next year based on today's date
+    current_date_str = datetime.today().strftime('%B %Y')
     current_year = datetime.today().year
     next_year = current_year + 1
-    automated_query = f"rural oncology cancer healthcare conferences meetings {current_year} {next_year}"
     
-    raw_results = []
+    automated_query = f"upcoming rural oncology cancer health conferences meetings {current_year} {next_year}"
+    
+    system_prompt = f"""
+    Search the live internet for upcoming professional conferences, webinars, or annual meetings regarding: {automated_query}.
+    Today's date is {current_date_str}. You MUST discard any events that occurred in the past.
+    
+    You MUST output the results strictly as a markdown table using the exact layout below:
+
+    | Conference Name | Date | Location | Brief Description | Website Link |
+    | --- | --- | --- | --- | --- |
+
+    Do not include introductory or concluding conversational text. Only output the filled markdown table.
+    Only include public, official professional medical events. Do not include general technology or AI events.
+    """
+
+    # Call Google Gemini 2.5 Flash and turn on its native live Google Search engine!
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=system_prompt,
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())],
+        ),
+    )
+    
+    # Safely extract the text table and the clean source links
+    table_content = response.text
+    source_links = []
     try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(automated_query, max_results=8))
-            for i, r in enumerate(results, 1):
-                raw_results.append({
-                    "index": i,
-                    "title": r['title'],
-                    "body": r['body'],
-                    "url": r['href']
-                })
-    except Exception as e:
+        sources = response.candidates.grounding_metadata.grounding_chunks
+        for chunk in sources:
+            source_links.append({"title": chunk.web.title, "url": chunk.web.uri})
+    except:
         pass
-    return raw_results
+        
+    return table_content, source_links
 
-# 4. Execute the App Layout Flow on Page Load
-if hf_token:
-    with st.spinner("Loading conference schedule..."):
-        try:
-            # Grab raw data from the 30-day safe cache storage
-            cached_search_data = fetch_raw_search_results()
-            
-            # Format the text payload for the AI processor
-            search_results_text = ""
-            for item in cached_search_data:
-                search_results_text += f"RESULT #{item['index']}\nTitle: {item['title']}\nDetails: {item['body']}\n\n"
-            
-            current_date_str = datetime.today().strftime('%B %Y')
-            current_year = datetime.today().year
-            next_year = current_year + 1
+# 4. Execute the Cached Search Automatically on Page Load
+with st.spinner("Loading conference schedule..."):
+    try:
+        conference_table, used_sources = fetch_conferences_from_web()
+        
+        # Display the crisp markdown table with links built directly into the rows
+        st.subheader("📅 Live Schedule")
+        st.markdown(conference_table)
+        
+        # Display clean underlying sources used by Google Search as a dropdown box
+        if used_sources:
+            with st.expander("🌐 View Search Sources"):
+                for source in used_sources:
+                    st.markdown(f"- [{source['title']}]({source['url']})")
+                    
+    except Exception as e:
+        st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
 
-            system_prompt = f"""
-            You are a medical administrative assistant. Your job is to extract upcoming rural healthcare, medical, and oncology conferences from the search results below.
-            
-            CRITICAL CHRONOLOGICAL RULES:
-            - Today's date is {current_date_str}.
-            - Discard any conferences that occurred in the past. Only include future events for {current_year} or {next_year}.
-            - Discard any entries about general tech or AI. Only include healthcare/oncology.
-
-            Search Results to parse:
-            {search_results_text}
-
-            You MUST output your findings strictly as a markdown table using the exact layout below. 
-            In the 'Source Reference' column, simply output the text 'Source #X' matching the RESULT #X from the search results.
-
-            | Conference Name | Date | Location | Brief Description | Source Reference |
-            | --- | --- | --- | --- | --- |
-
-            Do not include introductory text, conversational text, or summary text. Only output the markdown table.
-            """
-
-            # Run the generation call using the chat endpoint
-            response = client.chat.completions.create(
-                model="Qwen/Qwen2.5-72B-Instruct",
-                messages=[{"role": "user", "content": system_prompt}],
-                max_tokens=1500,
-                temperature=0.1
-            )
-            
-            # --- UNIVERSAL PARSING ENGINE ---
-            # Checks every structural container level step-by-step to prevent text dropping
-            conference_table = ""
-            try:
-                if hasattr(response, 'choices') and response.choices:
-                    conference_table = response.choices[0].message.content
-                elif isinstance(response, list) and len(response) > 0:
-                    item = response[0]
-                    if isinstance(item, dict) and "message" in item:
-                        conference_table = item["message"].get("content", "")
-                    elif hasattr(item, 'message'):
-                        conference_table = item.message.content
-                elif isinstance(response, dict):
-                    if "choices" in response and response["choices"]:
-                        conference_table = response["choices"][0]["message"].get("content", "")
-                    elif "message" in response:
-                        conference_table = response["message"].get("content", "")
-            except:
-                pass
-
-            # Final fail-safe boundary recovery
-            if not conference_table:
-                conference_table = str(response)
-
-            # Render the Data Table on screen
-            st.subheader("📅 Live Schedule")
-            st.markdown(conference_table)
-            
-            # Render the Link Module on screen
-            if cached_search_data:
-                st.write("---")
-                st.subheader("🔗 Verified Official Website Links")
-                st.write("Click the links below to open the official websites for the sources referenced in the table above:")
-                
-                col1, col2 = st.columns(2)
-                for index, source in enumerate(cached_search_data):
-                    display_text = f"**Source #{source['index']}**: [{source['title']}]({source['url']})"
-                    if index % 2 == 0:
-                        col1.markdown(display_text)
-                    else:
-                        col2.markdown(display_text)
-                        
-        except Exception as e:
-            st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
+# --- HELP GUIDE (HIDDEN BACKGROUND COMMENT) ---
+# To read these instructions later, just open this file on GitHub.
+#
+# 1. Go to https://google.com
+# 2. Log in and click "Get API Key"
+# 3. Create a free key or use your existing prepaid key setup
+# 4. Paste it into Streamlit Cloud Secrets as GEMINI_API_KEY
 
