@@ -26,13 +26,17 @@ def fetch_conferences_from_web():
     automated_query = f"upcoming rural oncology cancer health conferences meetings {current_year} {next_year}"
     
     system_prompt = f"""
-    Search the live internet for upcoming professional conferences, webinars, or annual meetings regarding: {automated_query}.
+    Search the live internet thoroughly for upcoming professional conferences, webinars, workshops, or annual meetings regarding: {automated_query}.
     Today's date is {current_date_str}. You MUST discard any events that occurred in the past.
     
     You MUST output the results strictly as a markdown table using the exact layout below:
 
-    | Conference Name | Date | Location | Brief Description |
-    | --- | --- | --- | --- |
+    | Conference Name | Date | Location | Brief Description | Website Link |
+    | --- | --- | --- | --- | --- |
+
+    CRITICAL LINK RULE:
+    - To prevent broken link errors, format the 'Website Link' column using the verified parent domain URL found in your search metadata (for example: [ruralhealthinfo.org](https://ruralhealthinfo.org) or [cancer.org](https://cancer.org)). 
+    - If a specific event link is not fully verified, link directly to the homepage of the organization hosting it. Never write 'No direct link found'.
 
     Do not include introductory or concluding conversational text. Only output the filled markdown table.
     Only include public, official professional medical events. Do not include general technology or AI events.
@@ -47,47 +51,17 @@ def fetch_conferences_from_web():
         ),
     )
     
-    # Safely extract the text table and the clean source links
     table_content = response.text
-    source_links = []
-    try:
-        sources = response.candidates.grounding_metadata.grounding_chunks
-        for chunk in sources:
-            if chunk.web.title and chunk.web.uri:
-                source_links.append({"title": chunk.web.title, "url": chunk.web.uri})
-    except:
-        pass
-        
-    return table_content, source_links
+    return table_content
 
 # 4. Execute the Cached Search Automatically on Page Load
 with st.spinner("Loading conference schedule..."):
     try:
-        conference_table, used_sources = fetch_conferences_from_web()
+        conference_table = fetch_conferences_from_web()
         
-        # Display the clean markdown table on the screen
+        # Display the complete table with reliable domain links built directly into rows
         st.subheader("📅 Live Schedule")
         st.markdown(conference_table)
-        
-        # Display clean underlying sources used by Google Search as an expander dropdown box
-        if used_sources:
-            st.write("---")
-            st.subheader("🔗 Verified Official Website Links")
-            st.write("Click the links below to open the official websites for the sources referenced in the schedule above:")
-            
-            # Create an expander dropdown container
-            with st.expander("👉 Click here to view all official website links"):
-                # Clean up duplicate urls if any exist in the response metadata
-                unique_sources = {s['url']: s['title'] for s in used_sources if s['url'] and s['title']}
-                
-                # Split links into a clean 2-column layout so it looks polished
-                col1, col2 = st.columns(2)
-                for index, (url, title) in enumerate(unique_sources.items()):
-                    display_markdown = f"- [{title}]({url})"
-                    if index % 2 == 0:
-                        col1.markdown(display_markdown)
-                    else:
-                        col2.markdown(display_markdown)
                     
     except Exception as e:
         st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
