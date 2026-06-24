@@ -75,7 +75,7 @@ if hf_token:
             Do not include introductory text, conversational text, or summary text. Only output the markdown table.
             """
 
-            # Run the generation call
+            # Run the generation call using the chat endpoint
             response = client.chat.completions.create(
                 model="Qwen/Qwen2.5-72B-Instruct",
                 messages=[{"role": "user", "content": system_prompt}],
@@ -83,20 +83,30 @@ if hf_token:
                 temperature=0.1
             )
             
-            # --- FIXED BULLETPROOF PARSING ENGINE ---
-            # This logic safely parses every single structure Hugging Face servers return
-            if hasattr(response, 'choices') and len(response.choices) > 0:
-                conference_table = response.choices[0].message.content
-            elif isinstance(response, dict) and "choices" in response:
-                conference_table = response["choices"][0]["message"]["content"]
-            elif isinstance(response, dict) and "message" in response:
-                conference_table = response["message"]["content"]
-            elif isinstance(response, list) and len(response) > 0 and isinstance(response[0], dict):
-                conference_table = response[0].get("message", {}).get("content", str(response))
-            else:
-                # If it's a direct text block or fallback object, convert cleanly to string
+            # --- UNIVERSAL PARSING ENGINE ---
+            # Checks every structural container level step-by-step to prevent text dropping
+            conference_table = ""
+            try:
+                if hasattr(response, 'choices') and response.choices:
+                    conference_table = response.choices[0].message.content
+                elif isinstance(response, list) and len(response) > 0:
+                    item = response[0]
+                    if isinstance(item, dict) and "message" in item:
+                        conference_table = item["message"].get("content", "")
+                    elif hasattr(item, 'message'):
+                        conference_table = item.message.content
+                elif isinstance(response, dict):
+                    if "choices" in response and response["choices"]:
+                        conference_table = response["choices"][0]["message"].get("content", "")
+                    elif "message" in response:
+                        conference_table = response["message"].get("content", "")
+            except:
+                pass
+
+            # Final fail-safe boundary recovery
+            if not conference_table:
                 conference_table = str(response)
-            
+
             # Render the Data Table on screen
             st.subheader("📅 Live Schedule")
             st.markdown(conference_table)
@@ -117,3 +127,4 @@ if hf_token:
                         
         except Exception as e:
             st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
+
