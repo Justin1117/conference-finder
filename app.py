@@ -33,6 +33,7 @@ def fetch_conferences_from_web():
             results = list(ddgs.text(automated_query, max_results=8))
             for i, r in enumerate(results, 1):
                 search_results_text += f"RESULT #{i}\nTitle: {r['title']}\nDetails: {r['body']}\n\n"
+                # Store the index, title, and link explicitly
                 source_links.append({"index": i, "title": r['title'], "url": r['href']})
     except Exception as e:
         search_results_text = "Could not pull live web text due to search engine rate limits."
@@ -64,11 +65,11 @@ def fetch_conferences_from_web():
         temperature=0.1
     )
     
-    # --- FLEXIBLE FIX: Handle both object formats and list formats safely ---
-    if isinstance(response, list):
-        table_content = response[0].get("message", {}).get("content", "")
-    elif hasattr(response, 'choices'):
+    # Clean string conversion to ensure table compatibility
+    if hasattr(response, 'choices') and len(response.choices) > 0:
         table_content = response.choices[0].message.content
+    elif isinstance(response, dict):
+        table_content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
     else:
         table_content = str(response)
         
@@ -78,11 +79,13 @@ def fetch_conferences_from_web():
 if hf_token:
     with st.spinner("Loading conference schedule..."):
         try:
+            # Gather both elements at once
             conference_table, used_sources = fetch_conferences_from_web()
             
             st.subheader("📅 Live Schedule")
             st.markdown(conference_table)
             
+            # This section will now permanently display right under the table layout
             if used_sources:
                 st.write("---")
                 st.subheader("🔗 Verified Official Website Links")
@@ -98,4 +101,3 @@ if hf_token:
                         
         except Exception as e:
             st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
-
