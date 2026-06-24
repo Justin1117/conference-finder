@@ -20,42 +20,41 @@ else:
 # 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING
 @st.cache_data(ttl=2592000)
 def fetch_conferences_from_web():
-    # Dynamically grab today's date so the system always knows the present timeline
     current_date_str = datetime.today().strftime('%B %Y')
     current_year = datetime.today().year
     next_year = current_year + 1
     
-    # Force search results into future timelines
     automated_query = f"rural oncology cancer healthcare conferences meetings {current_year} {next_year}"
     
     search_results_text = ""
     source_links = []
     try:
         with DDGS() as ddgs:
-            results = list(ddgs.text(automated_query, max_results=7))
-            for r in results:
-                search_results_text += f"CONFERENCE WEBSITE DATA:\nTitle: {r['title']}\nDetails: {r['body']}\nURL: {r['href']}\n\n"
-                source_links.append({"title": r['title'], "url": r['href']})
+            # Pulling a few more results to ensure we get good data
+            results = list(ddgs.text(automated_query, max_results=8))
+            for i, r in enumerate(results, 1):
+                # We give each result a strict index number (1, 2, 3...)
+                search_results_text += f"RESULT #{i}\nTitle: {r['title']}\nDetails: {r['body']}\n\n"
+                source_links.append({"index": i, "title": r['title'], "url": r['href']})
     except Exception as e:
         search_results_text = "Could not pull live web text due to search engine rate limits."
 
-    # Direct the AI with explicit dynamic constraints
+    # Prompt ordering the AI to summarize the events but NOT generate URLs
     system_prompt = f"""
     You are a medical administrative assistant. Your job is to extract upcoming rural healthcare, medical, and oncology conferences from the search results below.
     
     CRITICAL CHRONOLOGICAL RULES:
     - Today's date is {current_date_str}.
-    - You MUST evaluate the date of every conference.
-    - If a conference has already taken place or occurred in the past relative to {current_date_str}, DISCARD IT. 
-    - Only include future professional events scheduled for late {current_year} or {next_year}.
-    - Do not include general AI, tech, or unrelated non-medical entries.
+    - Discard any conferences that occurred in the past. Only include future events for {current_year} or {next_year}.
+    - Discard any entries about general tech or AI. Only include healthcare/oncology.
 
     Search Results to parse:
     {search_results_text}
 
-    You MUST output your findings strictly as a markdown table using the exact layout below:
+    You MUST output your findings strictly as a markdown table using the exact layout below. 
+    In the 'Source Reference' column, simply output the text 'Source #X' matching the RESULT #X from the search results.
 
-    | Conference Name | Date | Location | Brief Description | Website Link |
+    | Conference Name | Date | Location | Brief Description | Source Reference |
     | --- | --- | --- | --- | --- |
 
     Do not include introductory text, conversational text, or summary text. Only output the markdown table.
@@ -68,7 +67,7 @@ def fetch_conferences_from_web():
         temperature=0.1
     )
     
-    table_content = response.choices[0].message.content
+    table_content = response.choices.message.content
     return table_content, source_links
 
 # 4. Execute the Cached Search Automatically on Page Load
@@ -80,10 +79,20 @@ if hf_token:
             st.subheader("📅 Live Schedule")
             st.markdown(conference_table)
             
+            # Display the 100% verified URLs safely underneath the table
             if used_sources:
-                with st.expander("🌐 View Search Sources"):
-                    for source in used_sources:
-                        st.markdown(f"- [{source['title']}]({source['url']})")
+                st.write("---")
+                st.subheader("🔗 Verified Official Website Links")
+                st.write("Click the links below to open the official websites for the sources referenced in the table above:")
+                
+                # Split links into a clean 2-column layout so it looks polished
+                col1, col2 = st.columns(2)
+                for index, source in enumerate(used_sources):
+                    display_text = f"**Source #{source['index']}**: [{source['title']}]({source['url']})"
+                    if index % 2 == 0:
+                        col1.markdown(display_text)
+                    else:
+                        col2.markdown(display_text)
                         
         except Exception as e:
             st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
