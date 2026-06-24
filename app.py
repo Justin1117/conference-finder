@@ -1,6 +1,7 @@
 import streamlit as st
 from huggingface_hub import InferenceClient
 from duckduckgo_search import DDGS
+from datetime import datetime
 
 # 1. Setup the webpage layout
 st.set_page_config(page_title="Rural Oncology Conferences", layout="wide")
@@ -19,25 +20,35 @@ else:
 # 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING
 @st.cache_data(ttl=2592000)
 def fetch_conferences_from_web():
-    # Focused query to force health/medical results out of the search engine
-    automated_query = "rural oncology cancer healthcare conferences meetings 2026 2027"
+    # Dynamically grab today's date so the system always knows the present timeline
+    current_date_str = datetime.today().strftime('%B %Y')
+    current_year = datetime.today().year
+    next_year = current_year + 1
+    
+    # Force search results into future timelines
+    automated_query = f"rural oncology cancer healthcare conferences meetings {current_year} {next_year}"
     
     search_results_text = ""
     source_links = []
     try:
         with DDGS() as ddgs:
-            results = list(ddgs.text(automated_query, max_results=6))
+            results = list(ddgs.text(automated_query, max_results=7))
             for r in results:
                 search_results_text += f"CONFERENCE WEBSITE DATA:\nTitle: {r['title']}\nDetails: {r['body']}\nURL: {r['href']}\n\n"
                 source_links.append({"title": r['title'], "url": r['href']})
     except Exception as e:
         search_results_text = "Could not pull live web text due to search engine rate limits."
 
-    # Strict prompt forcing the model to only use the text above
+    # Direct the AI with explicit dynamic constraints
     system_prompt = f"""
     You are a medical administrative assistant. Your job is to extract upcoming rural healthcare, medical, and oncology conferences from the search results below.
     
-    CRITICAL RULE: Ignore any topics regarding general AI, generic technology, or unrelated themes. Only extract events related to healthcare, rural medicine, or cancer/oncology.
+    CRITICAL CHRONOLOGICAL RULES:
+    - Today's date is {current_date_str}.
+    - You MUST evaluate the date of every conference.
+    - If a conference has already taken place or occurred in the past relative to {current_date_str}, DISCARD IT. 
+    - Only include future professional events scheduled for late {current_year} or {next_year}.
+    - Do not include general AI, tech, or unrelated non-medical entries.
 
     Search Results to parse:
     {search_results_text}
@@ -50,7 +61,6 @@ def fetch_conferences_from_web():
     Do not include introductory text, conversational text, or summary text. Only output the markdown table.
     """
 
-    # Using Qwen 2.5 72B - a powerful, free model that handles strict structured data perfectly
     response = client.chat.completions.create(
         model="Qwen/Qwen2.5-72B-Instruct",
         messages=[{"role": "user", "content": system_prompt}],
