@@ -26,7 +26,7 @@ def fetch_conferences_from_web():
     automated_query = f"upcoming rural oncology cancer health conferences meetings {current_year} {next_year}"
     
     system_prompt = f"""
-    Search the live internet thoroughly for upcoming professional conferences, webinars, workshops, or annual meetings regarding: {automated_query}.
+    Search the live internet thoroughly for upcoming professional conferences, webinars, workshops, or annual meetings regarding: {automated_query} that will occur in the United States only.
     Today's date is {current_date_str}. You MUST discard any events that occurred in the past.
     
     You MUST output the results strictly as a markdown table using the exact layout below:
