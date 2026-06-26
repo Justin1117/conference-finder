@@ -2,16 +2,20 @@ name: Keep Streamlit App Awake
 
 on:
   schedule:
-    # This automatically runs the script every 10 hours
     - cron: '0 */10 * * *'
-  workflow_dispatch: # Allows you to run it manually if needed
+  workflow_dispatch: 
+
+# This explicitly grants the automated bot write permissions inside the code file
+permissions:
+  contents: write
 
 jobs:
   keep-awake:
     runs-on: ubuntu-latest
     steps:
+      # Updated from v3 to v4 to fix the Node.js deprecation warning message
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Make an empty keep-awake commit
         run: |
