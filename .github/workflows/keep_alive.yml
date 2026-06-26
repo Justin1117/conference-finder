@@ -1,0 +1,21 @@
+name: Keep Streamlit App Awake
+
+on:
+  schedule:
+    # This automatically runs the script every 10 hours
+    - cron: '0 */10 * * *'
+  workflow_dispatch: # Allows you to run it manually if needed
+
+jobs:
+  keep-awake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Make an empty keep-awake commit
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "actions@github.com"
+          git commit --allow-empty -m "Keeping Streamlit App Awake (Timer Reset)"
+          git push
