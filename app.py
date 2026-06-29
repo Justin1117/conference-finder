@@ -3,19 +3,19 @@ from google import genai
 from google.genai import types
 from datetime import datetime
 
-# 1. Setup the webpage layout
+#Setup the webpage layout
 st.set_page_config(page_title="Rural Oncology Conferences", layout="wide")
 
 st.title("🌾 Upcoming Rural Oncology & Health Conferences")
 st.write("This list automatically checks the live internet for upcoming professional events and refreshes once a month.")
 
-# 2. Connect to the Google AI Client Safely using your secrets key
+#Connect to the Google AI Client Safely using your secrets key
 try:
     client = genai.Client()
 except Exception as e:
     st.error("Missing API Key! Please add GEMINI_API_KEY to your Streamlit Secrets.")
 
-# 3. AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING (Saves your tokens!)
+# AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING (Saves your tokens!)
 @st.cache_data(ttl=2592000)
 def fetch_conferences_from_web():
     # Dynamically grab the current year and next year based on today's date
@@ -54,7 +54,7 @@ def fetch_conferences_from_web():
     table_content = response.text
     return table_content
 
-# 4. Execute the Cached Search Automatically on Page Load
+# Execute the Cached Search Automatically on Page Load
 with st.spinner("Loading conference schedule..."):
     try:
         conference_table = fetch_conferences_from_web()
