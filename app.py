@@ -3,13 +3,6 @@ from google import genai
 from google.genai import types
 from datetime import datetime
 
-# To change sizes or colors, just modify the numbers or codes between the quotes.
-TITLE_FONT_SIZE = "50px"       # Size of the main title text
-HEADER_FONT_SIZE = "28px"      # Size of section headers (e.g., "Live Schedule")
-TEXT_COLOR = "#FFFFFF"         # Main title text color code (#FFFFFF is white)
-SUBTEXT_COLOR = "#A0A0A0"      # Smaller introductory text color code (gray)
-# =====================================================================
-
 #Setup the webpage layout
 st.set_page_config(page_title="Rural Oncology Conferences", layout="wide")
 
