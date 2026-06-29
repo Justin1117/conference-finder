@@ -15,10 +15,10 @@ try:
 except Exception as e:
     st.error("Missing API Key! Please add GEMINI_API_KEY to your Streamlit Secrets.")
 
-# AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING (Saves your tokens!)
+#AUTOMATED SEARCH FUNCTION WITH 30-DAY CACHING (Saves your tokens!)
 @st.cache_data(ttl=2592000)
 def fetch_conferences_from_web():
-    # Dynamically grab the current year and next year based on today's date
+    #Dynamically grab the current year and next year based on today's date
     current_date_str = datetime.today().strftime('%B %Y')
     current_year = datetime.today().year
     next_year = current_year + 1
@@ -42,7 +42,7 @@ def fetch_conferences_from_web():
     Only include public, official professional medical events. Do not include general technology or AI events.
     """
 
-    # Call Google Gemini 2.5 Flash and turn on its native live Google Search engine!
+    #Call Google Gemini 2.5 Flash and turn on its native live Google Search engine!
     response = client.models.generate_content(
         model='gemini-2.5-flash',
         contents=system_prompt,
@@ -54,22 +54,15 @@ def fetch_conferences_from_web():
     table_content = response.text
     return table_content
 
-# Execute the Cached Search Automatically on Page Load
+#Execute the Cached Search Automatically on Page Load
 with st.spinner("Loading conference schedule..."):
     try:
         conference_table = fetch_conferences_from_web()
         
-        # Display the complete table with reliable domain links built directly into rows
+        #Display the complete table with reliable domain links built directly into rows
         st.subheader("📅 Live Schedule")
         st.markdown(conference_table)
                     
     except Exception as e:
         st.error(f"Failed to auto-fetch data. Please check your API configuration. Error: {e}")
 
-# --- HELP GUIDE (HIDDEN BACKGROUND COMMENT) ---
-# To read these instructions later, just open this file on GitHub.
-#
-# 1. Go to https://google.com
-# 2. Log in and click "Get API Key"
-# 3. Create a free key or use your existing prepaid key setup
-# 4. Paste it into Streamlit Cloud Secrets as GEMINI_API_KEY
